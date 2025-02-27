@@ -1,7 +1,7 @@
 from ultralytics import YOLO
 import cv2
 
-model = YOLO("./runs/detect/train17/weights/best.pt")
+model = YOLO("./runs/detect/train18/weights/best.pt")
 
 #Para testar com vídeo:
 tempo_em_pe = 0
