@@ -1,78 +1,62 @@
 from ultralytics import YOLO
 import cv2
-import time
 
-model = YOLO("./runs/detect/train11/weights/best.pt")
+model = YOLO("./runs/detect/train17/weights/best.pt")
 
+#Para testar com vídeo:
 tempo_em_pe = 0
 tempo_sentado = 0
 tempo_deitado = 0
 tempo_nao_detectado = 0
-estado_atual = "não detectado"
-tempo_inicial = time.time()
-
-def atualizar_tempo(estado, duracao):
-    global tempo_em_pe, tempo_sentado, tempo_deitado, tempo_nao_detectado
-    if estado == "em pé":
-        tempo_em_pe += duracao
-    elif estado == "sentado":
-        tempo_sentado += duracao
-    elif estado == "deitado":
-        tempo_deitado += duracao
-    else:
-        tempo_nao_detectado += duracao
 
 video_path = './data/video_final/video_teste.mp4'
 cap = cv2.VideoCapture(video_path)
+fps = cap.get(cv2.CAP_PROP_FPS)
+tempo_por_frame = 1 / fps
+CLASSES_ESPERADAS = ["de_pe", "sentado", "deitado"]
 
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
-
-
-    results = model(frame)
-
-
+    results = model(frame, conf=0.25, imgsz=640, max_det=1, agnostic_nms=True)
     detections = results[0].boxes
-    classes_detectadas = [model.names[int(box.cls)] for box in detections]
-
-
-    if classes_detectadas:
-
-
-        if "em pé" in classes_detectadas:
-            classe_atual = "em pé"
-        elif "sentado" in classes_detectadas:
-            classe_atual = "sentado"
-        elif "deitado" in classes_detectadas:
-            classe_atual = "deitado"
-        else:
-            classe_atual = "não detectado"
+    classes_filtradas = [box for box in detections if model.names[int(box.cls)] in CLASSES_ESPERADAS]
+    if classes_filtradas:
+        classe_mais_confiavel = max(classes_filtradas, key=lambda x: x.conf)
+        classe_atual = model.names[int(classe_mais_confiavel.cls)]
     else:
         classe_atual = "não detectado"
-
-
-    tempo_atual = time.time()
-    duracao = tempo_atual - tempo_inicial
-
-    if classe_atual != estado_atual:
-
-        atualizar_tempo(estado_atual, duracao)
-
-        estado_atual = classe_atual
-
-        tempo_inicial = time.time()
-
-atualizar_tempo(estado_atual, time.time() - tempo_inicial)
+    if classe_atual == "de_pe":
+        tempo_em_pe += tempo_por_frame
+    elif classe_atual == "sentado":
+        tempo_sentado += tempo_por_frame
+    elif classe_atual == "deitado":
+        tempo_deitado += tempo_por_frame
+    else:
+        tempo_nao_detectado += tempo_por_frame
 
 tempo_total = tempo_em_pe + tempo_sentado + tempo_deitado + tempo_nao_detectado
-
 print(f"Tempo em pé: {tempo_em_pe:.2f} segundos ({(tempo_em_pe / tempo_total * 100):.2f}% do tempo total)")
 print(f"Tempo sentado: {tempo_sentado:.2f} segundos ({(tempo_sentado / tempo_total * 100):.2f}% do tempo total)")
 print(f"Tempo deitado: {tempo_deitado:.2f} segundos ({(tempo_deitado / tempo_total * 100):.2f}% do tempo total)")
 print(f"Tempo com usuário não detectado: {tempo_nao_detectado:.2f} segundos ({(tempo_nao_detectado / tempo_total * 100):.2f}% do tempo total)")
 print(f"Duração total: {tempo_total:.2f} segundos")
+
+
+#Para testar com webcam:
+# cap = cv2.VideoCapture(0)
+# cap.set(3, 640)
+# cap.set(4, 480)
+# while cap.isOpened():
+#     ret, frame = cap.read()
+#     if not ret:
+#         break
+#     results = model(frame, conf=0.3)
+#     annotated_frame = results[0].plot()
+#     cv2.imshow("YOLOv8 Webcam", annotated_frame)
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
 
 cap.release()
 cv2.destroyAllWindows()
