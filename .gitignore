@@ -1,5 +1,9 @@
 # created by virtualenv automatically
 .venv
 data/
-datasets/
+datasets/data/test
+datasets/data/train
+datasets/data/valid
+datasets/data/README.dataset.txt
+datasets/data/README.roboflow.txt
 .idea/
